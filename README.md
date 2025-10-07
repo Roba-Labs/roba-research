@@ -38,7 +38,7 @@ npx http-server -p 8080 .
 ```
 
 ### mjlab
-![mjlab Unitree G1](mjlab/src/mjlab/asset_zoo/img/g1.png)
+![mjlab Unitree G1](https://github.com/mujocolab/mjlab/blob/0ec1d26b80766f38777e4845a93401be6f7f479b/src/mjlab/asset_zoo/img/g1.png?raw=true)
 
 mjlab combines the Isaac Lab API with MuJoCo Warp to offer a lightweight RL lab for advanced robotics experiments. It focuses on GPU-accelerated training pipelines (e.g., Unitree G1 velocity tracking and motion imitation) and uv-based workflows for fast iteration.
 
