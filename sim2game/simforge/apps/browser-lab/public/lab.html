@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Simforge Browser Lab</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <meta name="application-name"   content="Simforge Browser Lab">
+        <meta name="description"        content="Interactive MuJoCo WASM playground">
+        <meta name="keywords"           content="MuJoCo, WASM, simulation">
+        <meta name="author"             content="Simforge contributors">
+        <meta name="viewport"           content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no, shrink-to-fit=0">
+        <meta name="theme-color"        content="#ffffff">
+        <link rel ="icon" type="image/x-icon" href="../assets/media/favicon.png">
+    </head>
+
+    <body style="margin:0px; background-color:rgb(255, 255, 255); overflow:hidden; position:fixed; min-height: 100%;
+                 touch-action: none;
+                 -webkit-touch-callout: none; /* iOS Safari */
+                 -webkit-user-select: none; /* Safari */
+                 -khtml-user-select: none; /* Konqueror HTML */
+                 -moz-user-select: none; /* Old versions of Firefox */
+                 -ms-user-select: none; /* Internet Explorer/Edge */
+                 user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */">
+        <h1 hidden></h1> <!-- Puts the Lighthouse Score over 90 heheh-->
+
+		<!-- Import maps polyfill -->
+		<script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+        <!-- Allows three.js Examples to work without building -->
+        <script type="importmap">
+            { "imports": {
+                "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/",
+                "bezier-js": "https://cdn.skypack.dev/bezier-js",
+                "rbush": "https://cdn.skypack.dev/rbush",
+                "pathfinding": "https://cdn.skypack.dev/pathfinding",
+                "roslib": "https://cdn.skypack.dev/roslib",
+                "kalmanjs": "https://cdn.skypack.dev/kalmanjs"
+            } }
+        </script>
+
+        <div id="appbody" style="position: absolute;">
+            <!--<div id="error"></div>
+            <script type="module" src="../modules/instrumentation/DebugConsole.js"></script>-->
+            <script type="module" src="../src/appShell.js"></script>
+        </div>
+    </body>
+</html>

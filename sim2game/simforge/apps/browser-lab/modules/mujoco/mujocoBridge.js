@@ -1,0 +1,968 @@
+import * as THREE from 'three';
+import { Reflector } from '../rendering/WaterReflector.js';
+/** @typedef {import('../../src/appShell.js').MuJoCoDemo} MuJoCoDemo */
+
+
+export async function reloadScene() {
+  // Delete the old scene and load the new scene
+  this.scene.remove(this.scene.getObjectByName("MuJoCo Root"));
+  [this.model, this.state, this.simulation, this.bodies, this.lights] =
+    await loadSceneFromUrl(this.mujoco, this.params.scene, this);
+  if (typeof this.resetCtrlTargets === 'function') {
+    this.resetCtrlTargets();
+  }
+  this.simulation.forward();
+  for (let i = 0; i < this.updateGUICallbacks.length; i++) {
+    this.updateGUICallbacks[i](this.model, this.simulation, this.params);
+  }
+}
+
+/** @param {MuJoCoDemo} parentContext*/
+export function setupGUI(parentContext) {
+
+  // Make sure we reset the camera when the scene is changed or reloaded.
+  parentContext.updateGUICallbacks.length = 0;
+  parentContext.updateGUICallbacks.push((model, simulation, params) => {
+    // TODO: Use free camera parameters from MuJoCo
+    parentContext.camera.position.set(2.0, 1.7, 1.7);
+    parentContext.controls.target.set(0, 0.7, 0);
+    parentContext.controls.update();
+
+    // Auto-load home keyframe for Go1 robot
+    if (params.scene && params.scene.includes('unitree_go1') && model.nkey > 0) {
+      // Load the "home" keyframe (index 0)
+      simulation.qpos.set(model.key_qpos.slice(0, model.nq));
+      simulation.ctrl.set(model.key_ctrl.slice(0, model.nu));
+      console.log('Go1 home position loaded');
+    }
+  });
+
+  // Add scene selection dropdown.
+  let reload = reloadScene.bind(parentContext);
+  parentContext.gui.add(parentContext.params, 'scene', {
+    "Skydio X2": "skydio_x2/scene.xml",
+    "Go1 Robot": "unitree_go1/scene.xml",
+    "Humanoid": "humanoid.xml",
+    "Cassie": "agility_cassie/scene.xml",
+    "Hammock": "hammock.xml",
+    "Balloons": "balloons.xml",
+    "Hand": "shadow_hand/scene_right.xml",
+    "Flag": "flag.xml",
+    "Mug": "mug.xml",
+    "Tendon": "model_with_tendon.xml"
+  }).name('Example Scene').onChange(reload);
+
+  // Add a help menu.
+  // Parameters:
+  //  Name: "Help".
+  //  When pressed, a help menu is displayed in the top left corner. When pressed again
+  //  the help menu is removed.
+  //  Can also be triggered by pressing F1.
+  // Has a dark transparent background.
+  // Has two columns: one for putting the action description, and one for the action key trigger.keyframeNumber
+  let keyInnerHTML = '';
+  let actionInnerHTML = '';
+  const displayHelpMenu = () => {
+    if (parentContext.params.help) {
+      const helpMenu = document.createElement('div');
+      helpMenu.style.position = 'absolute';
+      helpMenu.style.top = '10px';
+      helpMenu.style.left = '10px';
+      helpMenu.style.color = 'white';
+      helpMenu.style.font = 'normal 18px Arial';
+      helpMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+      helpMenu.style.padding = '10px';
+      helpMenu.style.borderRadius = '10px';
+      helpMenu.style.display = 'flex';
+      helpMenu.style.flexDirection = 'column';
+      helpMenu.style.alignItems = 'center';
+      helpMenu.style.justifyContent = 'center';
+      helpMenu.style.width = '400px';
+      helpMenu.style.height = '400px';
+      helpMenu.style.overflow = 'auto';
+      helpMenu.style.zIndex = '1000';
+
+      const helpMenuTitle = document.createElement('div');
+      helpMenuTitle.style.font = 'bold 24px Arial';
+      helpMenuTitle.innerHTML = '';
+      helpMenu.appendChild(helpMenuTitle);
+
+      const helpMenuTable = document.createElement('table');
+      helpMenuTable.style.width = '100%';
+      helpMenuTable.style.marginTop = '10px';
+      helpMenu.appendChild(helpMenuTable);
+
+      const helpMenuTableBody = document.createElement('tbody');
+      helpMenuTable.appendChild(helpMenuTableBody);
+
+      const helpMenuRow = document.createElement('tr');
+      helpMenuTableBody.appendChild(helpMenuRow);
+
+      const helpMenuActionColumn = document.createElement('td');
+      helpMenuActionColumn.style.width = '50%';
+      helpMenuActionColumn.style.textAlign = 'right';
+      helpMenuActionColumn.style.paddingRight = '10px';
+      helpMenuRow.appendChild(helpMenuActionColumn);
+
+      const helpMenuKeyColumn = document.createElement('td');
+      helpMenuKeyColumn.style.width = '50%';
+      helpMenuKeyColumn.style.textAlign = 'left';
+      helpMenuKeyColumn.style.paddingLeft = '10px';
+      helpMenuRow.appendChild(helpMenuKeyColumn);
+
+      const helpMenuActionText = document.createElement('div');
+      helpMenuActionText.innerHTML = actionInnerHTML;
+      helpMenuActionColumn.appendChild(helpMenuActionText);
+
+      const helpMenuKeyText = document.createElement('div');
+      helpMenuKeyText.innerHTML = keyInnerHTML;
+      helpMenuKeyColumn.appendChild(helpMenuKeyText);
+
+      // Close buttom in the top.
+      const helpMenuCloseButton = document.createElement('button');
+      helpMenuCloseButton.innerHTML = 'Close';
+      helpMenuCloseButton.style.position = 'absolute';
+      helpMenuCloseButton.style.top = '10px';
+      helpMenuCloseButton.style.right = '10px';
+      helpMenuCloseButton.style.zIndex = '1001';
+      helpMenuCloseButton.onclick = () => {
+        helpMenu.remove();
+      };
+      helpMenu.appendChild(helpMenuCloseButton);
+
+      document.body.appendChild(helpMenu);
+    } else {
+      document.body.removeChild(document.body.lastChild);
+    }
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'F1') {
+      parentContext.params.help = !parentContext.params.help;
+      displayHelpMenu();
+      event.preventDefault();
+    }
+  });
+  keyInnerHTML += 'F1<br>';
+  actionInnerHTML += 'Help<br>';
+
+  let simulationFolder = parentContext.gui.addFolder("Simulation");
+
+  // Add pause simulation checkbox.
+  // Parameters:
+  //  Under "Simulation" folder.
+  //  Name: "Pause Simulation".
+  //  When paused, a "pause" text in white is displayed in the top left corner.
+  //  Can also be triggered by pressing the P key.
+  const pauseSimulation = simulationFolder.add(parentContext.params, 'paused').name('Pause Simulation');
+  pauseSimulation.onChange((value) => {
+    if (value) {
+      const pausedText = document.createElement('div');
+      pausedText.style.position = 'absolute';
+      pausedText.style.top = '10px';
+      pausedText.style.left = '10px';
+      pausedText.style.color = 'white';
+      pausedText.style.font = 'normal 18px Arial';
+      pausedText.innerHTML = 'pause';
+      parentContext.container.appendChild(pausedText);
+    } else {
+      parentContext.container.removeChild(parentContext.container.lastChild);
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'KeyP') {
+      parentContext.params.paused = !parentContext.params.paused;
+      pauseSimulation.setValue(parentContext.params.paused);
+      event.preventDefault();
+    }
+  });
+  actionInnerHTML += 'Play / Pause<br>';
+  keyInnerHTML += 'P<br>';
+
+  keyInnerHTML += 'Space<br>';
+  actionInnerHTML += 'Skydio thrust up<br>';
+  keyInnerHTML += 'Z<br>';
+  actionInnerHTML += 'Skydio thrust down<br>';
+  keyInnerHTML += 'W / A / S / D<br>';
+  actionInnerHTML += 'Skydio tilt (F/L/B/R)<br>';
+
+  // Add reload model button.
+  // Parameters:
+  //  Under "Simulation" folder.
+  //  Name: "Reload".
+  //  When pressed, calls the reload function.
+  //  Can also be triggered by pressing ctrl + L.
+  simulationFolder.add({reload: () => { reload(); }}, 'reload').name('Reload');
+  document.addEventListener('keydown', (event) => {
+    if (event.ctrlKey && event.code === 'KeyL') { reload();  event.preventDefault(); }});
+  actionInnerHTML += 'Reload XML<br>';
+  keyInnerHTML += 'Ctrl L<br>';
+
+  // Add reset simulation button.
+  // Parameters:
+  //  Under "Simulation" folder.
+  //  Name: "Reset".
+  //  When pressed, resets the simulation to the initial state.
+  //  Can also be triggered by pressing backspace.
+  const resetSimulation = () => {
+    parentContext.simulation.resetData();
+    parentContext.simulation.forward();
+  };
+  simulationFolder.add({reset: () => { resetSimulation(); }}, 'reset').name('Reset');
+  document.addEventListener('keydown', (event) => {
+    if (event.code === 'Backspace') { resetSimulation(); event.preventDefault(); }});
+  actionInnerHTML += 'Reset simulation<br>';
+  keyInnerHTML += 'Backspace<br>';
+
+  // Screenshot hotkey and GUI button
+  const takeScreenshot = () => {
+    try {
+      const canvas = parentContext?.renderer?.domElement;
+      if (!canvas) return;
+      const dataURL = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = `mujoco_screenshot_${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error('Failed to take screenshot', err);
+    }
+  };
+  simulationFolder.add({ screenshot: takeScreenshot }, 'screenshot').name('Screenshot (Ctrl+S)');
+  document.addEventListener('keydown', (event) => {
+    if (event.ctrlKey && (event.code === 'KeyS')) { takeScreenshot(); event.preventDefault(); }
+  });
+  actionInnerHTML += 'Screenshot<br>';
+  keyInnerHTML += 'Ctrl S<br>';
+
+  // Add keyframe slider.
+  let nkeys = parentContext.model.nkey;
+  let keyframeGUI = simulationFolder.add(parentContext.params, "keyframeNumber", 0, nkeys - 1, 1).name('Load Keyframe').listen();
+  keyframeGUI.onChange((value) => {
+    if (value < parentContext.model.nkey) {
+      parentContext.simulation.qpos.set(parentContext.model.key_qpos.slice(
+        value * parentContext.model.nq, (value + 1) * parentContext.model.nq)); }});
+  parentContext.updateGUICallbacks.push((model, simulation, params) => {
+    let nkeys = parentContext.model.nkey;
+    console.log("new model loaded. has " + nkeys + " keyframes.");
+    if (nkeys > 0) {
+      keyframeGUI.max(nkeys - 1);
+      keyframeGUI.domElement.style.opacity = 1.0;
+    } else {
+      // Disable keyframe slider if no keyframes are available.
+      keyframeGUI.max(0);
+      keyframeGUI.domElement.style.opacity = 0.5;
+    }
+  });
+
+  // Add sliders for ctrlnoiserate and ctrlnoisestd; min = 0, max = 2, step = 0.01.
+  simulationFolder.add(parentContext.params, 'ctrlnoiserate', 0.0, 2.0, 0.01).name('Noise rate' );
+  simulationFolder.add(parentContext.params, 'ctrlnoisestd' , 0.0, 2.0, 0.01).name('Noise scale');
+
+  let textDecoder = new TextDecoder("utf-8");
+  let nullChar    = textDecoder.decode(new ArrayBuffer(1));
+
+  // Add actuator sliders.
+  let actuatorFolder = simulationFolder.addFolder("Actuators");
+  const addActuators = (model, simulation, params) => {
+    let act_range = model.actuator_ctrlrange;
+    let actuatorGUIs = [];
+    for (let i = 0; i < model.nu; i++) {
+      if (!model.actuator_ctrllimited[i]) { continue; }
+      let name = textDecoder.decode(
+        parentContext.model.names.subarray(
+          parentContext.model.name_actuatoradr[i])).split(nullChar)[0];
+
+      parentContext.params[name] = 0.0;
+      let actuatorGUI = actuatorFolder.add(parentContext.params, name, act_range[2 * i], act_range[2 * i + 1], 0.01).name(name).listen();
+      actuatorGUIs.push(actuatorGUI);
+      actuatorGUI.onChange((value) => {
+        simulation.ctrl[i] = value;
+      });
+    }
+    return actuatorGUIs;
+  };
+  let actuatorGUIs = addActuators(parentContext.model, parentContext.simulation, parentContext.params);
+  parentContext.updateGUICallbacks.push((model, simulation, params) => {
+    for (let i = 0; i < actuatorGUIs.length; i++) {
+      actuatorGUIs[i].destroy();
+    }
+    actuatorGUIs = addActuators(model, simulation, parentContext.params);
+  });
+  actuatorFolder.close();
+
+  // Add function that resets the camera to the default position.
+  // Can be triggered by pressing ctrl + A.
+  document.addEventListener('keydown', (event) => {
+    if (event.ctrlKey && event.code === 'KeyA') {
+      // TODO: Use free camera parameters from MuJoCo
+      parentContext.camera.position.set(2.0, 1.7, 1.7);
+      parentContext.controls.target.set(0, 0.7, 0);
+      parentContext.controls.update(); 
+      event.preventDefault();
+    }
+  });
+  actionInnerHTML += 'Reset free camera<br>';
+  keyInnerHTML += 'Ctrl A<br>';
+  // === PID tuning GUI ===
+  const pidRoot = parentContext.gui.addFolder('PID Tuning');
+
+  // top-level toggles & helpers
+  pidRoot.add(parentContext.params, 'pidEnabled').name('PID Enabled');
+  pidRoot.add(parentContext.params, 'altitudeOnly').name('Attitude-only (no alt PID)');
+  pidRoot.add(parentContext, 'baseHover', 0, 13, 0.01).name('Base hover');
+  pidRoot.add(parentContext, 'controlSmoothing', 0, 1, 0.01).name('Ctrl smoothing');
+
+  // helper to add a PID sub-folder
+  function addPidFolder(name, pid, ranges = {}) {
+    const f = pidRoot.addFolder(name);
+    const kp = ranges.kp ?? [0, 20];
+    const ki = ranges.ki ?? [0, 10];
+    const kd = ranges.kd ?? [0, 10];
+    const out = ranges.out ?? [-20, 20];
+    const i   = ranges.i   ?? [-5, 5];
+
+    f.add(pid, 'kp', kp[0], kp[1], 0.01).name('Kp');
+    f.add(pid, 'ki', ki[0], ki[1], 0.01).name('Ki');
+    f.add(pid, 'kd', kd[0], kd[1], 0.01).name('Kd');
+
+    // limits & integral clamp
+    f.add(pid, 'outMin', out[0], 0, 0.1).name('Out min');
+    f.add(pid, 'outMax', 0, out[1], 0.1).name('Out max');
+    f.add(pid, 'iMin', i[0], 0, 0.1).name('I min');
+    f.add(pid, 'iMax', 0, i[1], 0.1).name('I max');
+
+    f.add({ reset: () => pid.reset() }, 'reset').name('Reset integrator');
+    return f;
+  }
+
+  // make folders for each loop
+  addPidFolder('Roll',      parentContext.rollPID,  { kp:[0,10], ki:[0,5], kd:[0,5], out:[-8,8], i:[-3,3] });
+  addPidFolder('Pitch',     parentContext.pitchPID, { kp:[0,10], ki:[0,5], kd:[0,5], out:[-8,8], i:[-3,3] });
+  addPidFolder('Yaw',       parentContext.yawPID,   { kp:[0,10], ki:[0,5], kd:[0,5], out:[-6,6], i:[-3,3] });
+  addPidFolder('Altitude',  parentContext.altPID,   { kp:[0,20], ki:[0,10], kd:[0,10], out:[0,13], i:[-3,3] });
+
+  // live readouts (targets vs actual)
+  const rpyTarget = { roll:0, pitch:0, yaw:0, alt: parentContext.pidTarget.alt };
+  const rpyNow    = { roll:0, pitch:0, yaw:0, alt: 0 };
+  const readouts  = pidRoot.addFolder('Readouts');
+  readouts.add(rpyTarget, 'roll').name('Target roll (rad)').listen();
+  readouts.add(rpyTarget, 'pitch').name('Target pitch (rad)').listen();
+  readouts.add(rpyTarget, 'yaw').name('Target yaw (rad)').listen();
+  readouts.add(rpyTarget, 'alt').name('Target alt (m)').listen();
+  readouts.add(rpyNow, 'roll').name('Roll (rad)').listen();
+  readouts.add(rpyNow, 'pitch').name('Pitch (rad)').listen();
+  readouts.add(rpyNow, 'yaw').name('Yaw (rad)').listen();
+  readouts.add(rpyNow, 'alt').name('Alt (m)').listen();
+
+  // Controller selection
+  const controllerFolder = parentContext.gui.addFolder('Controller');
+  const controllerOptions = { Auto: 'auto', Skydio: 'skydio', Go1: 'go1', Sine: 'sine', Waypoints: 'waypoints', Follow: 'follow', None: 'none' };
+  if (!parentContext.params) parentContext.params = {};
+  if (!parentContext.params.controllerType) parentContext.params.controllerType = 'auto';
+  controllerFolder.add(parentContext.params, 'controllerType', controllerOptions).name('Type').onChange((value) => {
+    try { parentContext.setActiveController?.(parentContext.params.scene); } catch (e) { console.warn('Controller switch failed', e); }
+  });
+  controllerFolder.add(parentContext.params, 'pidEnabled').name('PID Enabled');
+  controllerFolder.add(parentContext.params, 'altitudeOnly').name('Attitude-only');
+  controllerFolder.add(parentContext, 'baseHover', 0, 13, 0.01).name('Base hover');
+  controllerFolder.add(parentContext, 'controlSmoothing', 0, 1, 0.01).name('Ctrl smoothing');
+  controllerFolder.add(parentContext.params, 'sineFrequency', 0.05, 5, 0.01).name('Sine freq (Hz)');
+  controllerFolder.add(parentContext.params, 'sineAmplitudeScale', 0.0, 0.9, 0.01).name('Sine amp scale');
+
+  // Waypoints controls
+  const wpFolder = parentContext.gui.addFolder('Waypoints');
+  const downloadWp = () => {
+    try {
+      const text = parentContext.waypoints?.toJSON() || '[]';
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `waypoints_${Date.now()}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) { console.error('Download waypoints failed', err); }
+  };
+  const uploadWp = async () => {
+    try {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = '.json,application/json';
+      input.onchange = async (e) => {
+        const file = e.target.files && e.target.files[0]; if (!file) return;
+        const text = await file.text();
+        parentContext.waypoints?.loadFromJSON(text);
+      };
+      input.click();
+    } catch (err) { console.error('Upload waypoints failed', err); }
+  };
+  wpFolder.add({ enable: () => parentContext.waypoints && (parentContext.waypoints.enabled = true) }, 'enable').name('Enable editing');
+  wpFolder.add({ disable: () => parentContext.waypoints && (parentContext.waypoints.enabled = false) }, 'disable').name('Disable editing');
+  wpFolder.add({ clear: () => parentContext.waypoints?.clear() }, 'clear').name('Clear');
+  wpFolder.add({ save: downloadWp }, 'save').name('Save JSON');
+  wpFolder.add({ load: uploadWp }, 'load').name('Load JSON');
+  wpFolder.add(parentContext.waypoints, 'dwellSeconds', 0.0, 10.0, 0.1).name('Dwell seconds');
+  wpFolder.add(parentContext.waypoints, 'loop').name('Loop');
+  wpFolder.add({ smooth: () => {
+    try {
+      const pts = parentContext.waypoints?.points || [];
+      const samples = parentContext.pathSmoother?.build(pts, 0.6, 25) || [];
+      parentContext.smoothedPath = samples; // store for controllers
+    } catch (e) { console.error('Path smoothing failed', e); }
+  } }, 'smooth').name('Smooth path');
+  wpFolder.add({ plan: () => {
+    try {
+      const pts = parentContext.waypoints?.points || [];
+      const planned = parentContext.routePlanner?.planBetweenWaypoints(pts) || [];
+      parentContext.plannedPath = planned;
+    } catch (e) { console.error('Route planning failed', e); }
+  } }, 'plan').name('Plan path (A*)');
+
+  // Follow target controls
+  const followFolder = parentContext.gui.addFolder('Follow Target');
+  followFolder.add({ enable: () => parentContext.targetSelector?.setEnabled(true) }, 'enable').name('Enable picking');
+  followFolder.add({ disable: () => parentContext.targetSelector?.setEnabled(false) }, 'disable').name('Disable picking');
+  followFolder.add({ clear: () => parentContext.targetSelector?.clear() }, 'clear').name('Clear selection');
+
+  // ROS Bridge controls
+  const rosFolder = parentContext.gui.addFolder('ROS');
+  rosFolder.add(parentContext.ros.params, 'url').name('ws url');
+  rosFolder.add({ connect: () => parentContext.ros.connect() }, 'connect').name('Connect');
+  rosFolder.add({ disconnect: () => parentContext.ros.disconnect() }, 'disconnect').name('Disconnect');
+  rosFolder.add(parentContext.ros.params, 'publishTelemetry').name('Publish telemetry');
+  rosFolder.add(parentContext.ros.params, 'subscribeTeleop').name('Subscribe teleop');
+  rosFolder.add(parentContext.ros.params, 'frameId').name('Frame id');
+
+  // Sensor Fusion controls
+  const fusionFolder = parentContext.gui.addFolder('Sensor Fusion');
+  fusionFolder.add({ enable: () => parentContext.sensorFusion?.setEnabled(true) }, 'enable').name('Enable Kalman');
+  fusionFolder.add({ disable: () => parentContext.sensorFusion?.setEnabled(false) }, 'disable').name('Disable Kalman');
+  fusionFolder.add({ reset: () => parentContext.sensorFusion?.reset() }, 'reset').name('Reset filters');
+
+  // Recording controls (JSON state and Video)
+  const recFolder = parentContext.gui.addFolder('Recording');
+  recFolder.add({ startJSON: () => parentContext.simRecorder?.start() }, 'startJSON').name('Start JSON recording');
+  recFolder.add({ stopJSON: () => parentContext.simRecorder?.stop() }, 'stopJSON').name('Stop JSON recording');
+  recFolder.add({ saveJSON: () => parentContext.simRecorder?.download() }, 'saveJSON').name('Save JSON');
+  recFolder.add({ loadJSON: async () => {
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        parentContext.simRecorder?.loadFromText(text);
+        if (parentContext.simPlayback && parentContext.simRecorder?.frames) {
+          parentContext.simPlayback.loadFrames(parentContext.simRecorder.frames);
+        }
+      };
+      input.click();
+    } catch(err) { console.error('Load JSON failed', err); }
+  } }, 'loadJSON').name('Load JSON');
+  recFolder.add({ startPlayback: () => parentContext.simPlayback?.start() }, 'startPlayback').name('Start playback');
+  recFolder.add({ stopPlayback: () => parentContext.simPlayback?.stop() }, 'stopPlayback').name('Stop playback');
+  recFolder.add(parentContext, 'playbackSpeed', 0.1, 5.0, 0.1).name('Playback speed').onChange(v => parentContext.simPlayback?.setSpeed(v));
+  recFolder.add({ startVideo: () => parentContext.videoRecorder?.start(60) }, 'startVideo').name('Start video (60 FPS)');
+  recFolder.add({ stopVideo: () => parentContext.videoRecorder?.stop() }, 'stopVideo').name('Stop video & save');
+
+
+  
+  // keep readouts synced each frame
+  // keep readouts synced each frame
+  parentContext.updateGUICallbacks.push(() => {
+    rpyTarget.roll  = parentContext.pidTarget.roll;
+    rpyTarget.pitch = parentContext.pidTarget.pitch;
+    rpyTarget.yaw   = parentContext.pidTarget.yaw;
+    rpyTarget.alt   = parentContext.pidTarget.alt;
+
+    const qpos = parentContext.simulation?.qpos;
+    if (qpos && qpos.length >= 7) {
+      const z = qpos[2];
+      const { roll, pitch, yaw } =
+        // see #2 below
+        parentContext.quatToRPY
+          ? parentContext.quatToRPY(qpos[3], qpos[4], qpos[5], qpos[6])
+          : { roll: 0, pitch: 0, yaw: 0 };
+
+      rpyNow.roll = roll;
+      rpyNow.pitch = pitch;
+      rpyNow.yaw = yaw;
+      rpyNow.alt = z;
+    }
+  });
+ 
+
+  parentContext.gui.open();
+}
+
+
+/** Loads a scene for MuJoCo
+ * @param {mujoco} mujoco This is a reference to the mujoco namespace object
+ * @param {string} filename This is the name of the .xml file in the /working/ directory of the MuJoCo/Emscripten Virtual File System
+ * @param {MuJoCoDemo} parent The three.js Scene Object to add the MuJoCo model elements to
+ */
+export async function loadSceneFromUrl(mujoco, filename, parent) {
+    // Free the old simulation.
+    if (parent.simulation != null) {
+      parent.simulation.free();
+      parent.model      = null;
+      parent.state      = null;
+      parent.simulation = null;
+    }
+
+    // Load in the state from XML.
+    try {
+      parent.model       = mujoco.Model.load_from_xml("/working/"+filename);
+    } catch (err) {
+      console.error(`Failed to load MuJoCo XML: ${filename}`, err, {
+        name: err?.name,
+        message: err?.message,
+        stack: err?.stack,
+      });
+      if (typeof mujoco.getExceptionMessage === 'function') {
+        try {
+          console.error('MuJoCo exception:', mujoco.getExceptionMessage(err));
+        } catch (nested) {
+          console.warn('Unable to decode MuJoCo exception message', nested);
+        }
+      }
+      throw err;
+    }
+    parent.state       = new mujoco.State(parent.model);
+    parent.simulation  = new mujoco.Simulation(parent.model, parent.state);
+
+    let model = parent.model;
+    let state = parent.state;
+    let simulation = parent.simulation;
+
+    // Decode the null-terminated string names.
+    let textDecoder = new TextDecoder("utf-8");
+    let names_array = new Uint8Array(model.names);
+    let fullString = textDecoder.decode(model.names);
+    let names = fullString.split(textDecoder.decode(new ArrayBuffer(1)));
+
+    // Create the root object.
+    let mujocoRoot = new THREE.Group();
+    mujocoRoot.name = "MuJoCo Root"
+    parent.scene.add(mujocoRoot);
+
+    /** @type {Object.<number, THREE.Group>} */
+    let bodies = {};
+    /** @type {Object.<number, THREE.BufferGeometry>} */
+    let meshes = {};
+    /** @type {THREE.Light[]} */
+    let lights = [];
+
+    // Default material definition.
+    let material = new THREE.MeshPhysicalMaterial();
+    material.color = new THREE.Color(1, 1, 1);
+
+    // Loop through the MuJoCo geoms and recreate them in three.js.
+    for (let g = 0; g < model.ngeom; g++) {
+      // Only visualize geom groups up to 2 (same default behavior as simulate).
+      if (!(model.geom_group[g] < 3)) { continue; }
+
+      // Get the body ID and type of the geom.
+      let b = model.geom_bodyid[g];
+      let type = model.geom_type[g];
+      let size = [
+        model.geom_size[(g*3) + 0],
+        model.geom_size[(g*3) + 1],
+        model.geom_size[(g*3) + 2]
+      ];
+
+      // Create the body if it doesn't exist.
+      if (!(b in bodies)) {
+        bodies[b] = new THREE.Group();
+        
+        let start_idx = model.name_bodyadr[b];
+        let end_idx = start_idx;
+        while (end_idx < names_array.length && names_array[end_idx] !== 0) {
+          end_idx++;
+        }
+        let name_buffer = names_array.subarray(start_idx, end_idx);
+        bodies[b].name = textDecoder.decode(name_buffer);
+        
+        bodies[b].bodyID = b;
+        bodies[b].has_custom_mesh = false;
+      }
+
+      // Set the default geometry. In MuJoCo, this is a sphere.
+      let geometry = new THREE.SphereGeometry(size[0] * 0.5);
+      if (type == mujoco.mjtGeom.mjGEOM_PLANE.value) {
+        // Special handling for plane later.
+      } else if (type == mujoco.mjtGeom.mjGEOM_HFIELD.value) {
+        // TODO: Implement this.
+      } else if (type == mujoco.mjtGeom.mjGEOM_SPHERE.value) {
+        geometry = new THREE.SphereGeometry(size[0]);
+      } else if (type == mujoco.mjtGeom.mjGEOM_CAPSULE.value) {
+        geometry = new THREE.CapsuleGeometry(size[0], size[1] * 2.0, 20, 20);
+      } else if (type == mujoco.mjtGeom.mjGEOM_ELLIPSOID.value) {
+        geometry = new THREE.SphereGeometry(1); // Stretch this below
+      } else if (type == mujoco.mjtGeom.mjGEOM_CYLINDER.value) {
+        geometry = new THREE.CylinderGeometry(size[0], size[0], size[1] * 2.0);
+      } else if (type == mujoco.mjtGeom.mjGEOM_BOX.value) {
+        geometry = new THREE.BoxGeometry(size[0] * 2.0, size[2] * 2.0, size[1] * 2.0);
+      } else if (type == mujoco.mjtGeom.mjGEOM_MESH.value) {
+        let meshID = model.geom_dataid[g];
+
+        if (!(meshID in meshes)) {
+          geometry = new THREE.BufferGeometry(); // TODO: Populate the Buffer Geometry with Generic Mesh Data
+
+          let vertex_buffer = model.mesh_vert.subarray(
+             model.mesh_vertadr[meshID] * 3,
+            (model.mesh_vertadr[meshID]  + model.mesh_vertnum[meshID]) * 3);
+          for (let v = 0; v < vertex_buffer.length; v+=3){
+            //vertex_buffer[v + 0] =  vertex_buffer[v + 0];
+            let temp             =  vertex_buffer[v + 1];
+            vertex_buffer[v + 1] =  vertex_buffer[v + 2];
+            vertex_buffer[v + 2] = -temp;
+          }
+
+          let normal_buffer = model.mesh_normal.subarray(
+             model.mesh_vertadr[meshID] * 3,
+            (model.mesh_vertadr[meshID]  + model.mesh_vertnum[meshID]) * 3);
+          for (let v = 0; v < normal_buffer.length; v+=3){
+            //normal_buffer[v + 0] =  normal_buffer[v + 0];
+            let temp             =  normal_buffer[v + 1];
+            normal_buffer[v + 1] =  normal_buffer[v + 2];
+            normal_buffer[v + 2] = -temp;
+          }
+
+          let uv_buffer = model.mesh_texcoord.subarray(
+             model.mesh_texcoordadr[meshID] * 2,
+            (model.mesh_texcoordadr[meshID]  + model.mesh_vertnum[meshID]) * 2);
+          let triangle_buffer = model.mesh_face.subarray(
+             model.mesh_faceadr[meshID] * 3,
+            (model.mesh_faceadr[meshID]  + model.mesh_facenum[meshID]) * 3);
+          geometry.setAttribute("position", new THREE.BufferAttribute(vertex_buffer, 3));
+          geometry.setAttribute("normal"  , new THREE.BufferAttribute(normal_buffer, 3));
+          geometry.setAttribute("uv"      , new THREE.BufferAttribute(    uv_buffer, 2));
+          geometry.setIndex    (Array.from(triangle_buffer));
+          meshes[meshID] = geometry;
+        } else {
+          geometry = meshes[meshID];
+        }
+
+        bodies[b].has_custom_mesh = true;
+      }
+      // Done with geometry creation.
+
+      // Set the Material Properties of incoming bodies
+      let texture = undefined;
+      let color = [
+        model.geom_rgba[(g * 4) + 0],
+        model.geom_rgba[(g * 4) + 1],
+        model.geom_rgba[(g * 4) + 2],
+        model.geom_rgba[(g * 4) + 3]];
+      if (model.geom_matid[g] != -1) {
+        let matId = model.geom_matid[g];
+
+        // Get material name for debugging
+        let matName = "";
+        if (model.names && model.name_matadr) {
+          const nameStart = model.name_matadr[matId];
+          const nameBytes = [];
+          for (let i = nameStart; model.names[i] !== 0; i++) {
+            nameBytes.push(model.names[i]);
+          }
+          matName = String.fromCharCode(...nameBytes);
+        }
+
+        // Special handling for orange material
+        if (matName === "orange") {
+          color = [1.0, 0.5, 0.0, 1.0];
+          console.log("Applied orange material to geom", g);
+        } else {
+          color = [
+            model.mat_rgba[(matId * 4) + 0],
+            model.mat_rgba[(matId * 4) + 1],
+            model.mat_rgba[(matId * 4) + 2],
+            model.mat_rgba[(matId * 4) + 3]];
+        }
+
+        // Construct Texture from model.tex_rgb
+        texture = undefined;
+        let texId = model.mat_texid[matId];
+        if (texId != -1) {
+          let width    = model.tex_width [texId];
+          let height   = model.tex_height[texId];
+          let offset   = model.tex_adr   [texId];
+          let rgbArray = model.tex_rgb   ;
+          let rgbaArray = new Uint8Array(width * height * 4);
+          for (let p = 0; p < width * height; p++){
+            rgbaArray[(p * 4) + 0] = rgbArray[offset + ((p * 3) + 0)];
+            rgbaArray[(p * 4) + 1] = rgbArray[offset + ((p * 3) + 1)];
+            rgbaArray[(p * 4) + 2] = rgbArray[offset + ((p * 3) + 2)];
+            rgbaArray[(p * 4) + 3] = 1.0;
+          }
+          texture = new THREE.DataTexture(rgbaArray, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
+          if (texId == 2) {
+            texture.repeat = new THREE.Vector2(50, 50);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+          } else {
+            texture.repeat = new THREE.Vector2(1, 1);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+          }
+
+          texture.needsUpdate = true;
+        }
+      }
+
+      if (material.color.r != color[0] ||
+          material.color.g != color[1] ||
+          material.color.b != color[2] ||
+          material.opacity != color[3] ||
+          material.map     != texture) {
+        material = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color(color[0], color[1], color[2]),
+          transparent: color[3] < 1.0,
+          opacity: color[3],
+          specularIntensity: model.geom_matid[g] != -1 ?       model.mat_specular   [model.geom_matid[g]] *0.5 : undefined,
+          reflectivity     : model.geom_matid[g] != -1 ?       model.mat_reflectance[model.geom_matid[g]] : undefined,
+          roughness        : model.geom_matid[g] != -1 ? 1.0 - model.mat_shininess  [model.geom_matid[g]] : undefined,
+          metalness        : model.geom_matid[g] != -1 ? 0.1 : undefined,
+          map              : texture
+        });
+      }
+
+      let mesh = new THREE.Mesh();
+      if (type == 0) {
+        mesh = new Reflector( new THREE.PlaneGeometry( 100, 100 ), { clipBias: 0.003,texture: texture } );
+        mesh.rotateX( - Math.PI / 2 );
+      } else {
+        mesh = new THREE.Mesh(geometry, material);
+      }
+
+      mesh.castShadow = g == 0 ? false : true;
+      mesh.receiveShadow = type != 7;
+      mesh.bodyID = b;
+      bodies[b].add(mesh);
+      applyPositionFromBuffer(model.geom_pos, g, mesh.position);
+      if (type != 0) { applyQuaternionFromBuffer(model.geom_quat, g, mesh.quaternion); }
+      if (type == 4) { mesh.scale.set(size[0], size[2], size[1]) } // Stretch the Ellipsoid
+    }
+
+    // Parse tendons.
+    let tendonMat = new THREE.MeshPhongMaterial();
+    tendonMat.color = new THREE.Color(0.8, 0.3, 0.3);
+    mujocoRoot.cylinders = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(1, 1, 1),
+        tendonMat, 1023);
+    mujocoRoot.cylinders.receiveShadow = true;
+    mujocoRoot.cylinders.castShadow    = true;
+    mujocoRoot.add(mujocoRoot.cylinders);
+    mujocoRoot.spheres = new THREE.InstancedMesh(
+        new THREE.SphereGeometry(1, 10, 10),
+        tendonMat, 1023);
+    mujocoRoot.spheres.receiveShadow = true;
+    mujocoRoot.spheres.castShadow    = true;
+    mujocoRoot.add(mujocoRoot.spheres);
+
+    // Add ambient light for better visibility
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    mujocoRoot.add(ambientLight);
+
+    // Parse lights.
+    for (let l = 0; l < model.nlight; l++) {
+      let light = new THREE.SpotLight(0xffffff, 1.0);
+      if (model.light_directional[l]) {
+        light = new THREE.DirectionalLight(0xffffff, 1.0);
+      } else {
+        light = new THREE.SpotLight(0xffffff, 1.0);
+      }
+      light.decay = model.light_attenuation[l] * 100;
+      light.penumbra = 0.5;
+      light.castShadow = true; // default false
+
+      light.shadow.mapSize.width = 1024; // default
+      light.shadow.mapSize.height = 1024; // default
+      light.shadow.camera.near = 1; // default
+      light.shadow.camera.far = 10; // default
+      //bodies[model.light_bodyid()].add(light);
+      if (bodies[0]) {
+        bodies[0].add(light);
+      } else {
+        mujocoRoot.add(light);
+      }
+      lights.push(light);
+    }
+    if (model.nlight == 0) {
+      let light = new THREE.DirectionalLight(0xffffff, 1.0);
+      mujocoRoot.add(light);
+    }
+
+    for (let b = 0; b < model.nbody; b++) {
+      //let parent_body = model.body_parentid()[b];
+      if (b == 0 || !bodies[0]) {
+        mujocoRoot.add(bodies[b]);
+      } else if(bodies[b]){
+        bodies[0].add(bodies[b]);
+      } else {
+        console.log("Body without Geometry detected; adding to bodies", b, bodies[b]);
+        bodies[b] = new THREE.Group(); bodies[b].name = names[b + 1]; bodies[b].bodyID = b; bodies[b].has_custom_mesh = false;
+        bodies[0].add(bodies[b]);
+      }
+    }
+  
+    parent.mujocoRoot = mujocoRoot;
+
+    if (parent && typeof parent.onSceneLoaded === 'function') {
+      try {
+        parent.onSceneLoaded(filename);
+      } catch (err) {
+        console.error('onSceneLoaded hook failed:', err);
+      }
+    }
+
+    return [model, state, simulation, bodies, lights]
+}
+
+/** Downloads the assets/scenes folder to MuJoCo's virtual filesystem
+ * @param {mujoco} mujoco */
+const DEFAULT_SCENE_FILES = [
+  "22_humanoids.xml",
+  "adhesion.xml",
+  "agility_cassie/assets/achilles-rod.obj",
+  "agility_cassie/assets/cassie-texture.png",
+  "agility_cassie/assets/foot-crank.obj",
+  "agility_cassie/assets/foot.obj",
+  "agility_cassie/assets/heel-spring.obj",
+  "agility_cassie/assets/hip-pitch.obj",
+  "agility_cassie/assets/hip-roll.obj",
+  "agility_cassie/assets/hip-yaw.obj",
+  "agility_cassie/assets/knee-spring.obj",
+  "agility_cassie/assets/knee.obj",
+  "agility_cassie/assets/pelvis.obj",
+  "agility_cassie/assets/plantar-rod.obj",
+  "agility_cassie/assets/shin.obj",
+  "agility_cassie/assets/tarsus.obj",
+  "agility_cassie/cassie.xml",
+  "agility_cassie/scene.xml",
+  "arm26.xml",
+  "balloons.xml",
+  "flag.xml",
+  "hammock.xml",
+  "humanoid.xml",
+  "humanoid_body.xml",
+  "model_with_tendon.xml",
+  "mug.obj",
+  "mug.png",
+  "mug.xml",
+  "scene.xml",
+  "shadow_hand/assets/f_distal_pst.obj",
+  "shadow_hand/assets/f_knuckle.obj",
+  "shadow_hand/assets/f_middle.obj",
+  "shadow_hand/assets/f_proximal.obj",
+  "shadow_hand/assets/forearm_0.obj",
+  "shadow_hand/assets/forearm_1.obj",
+  "shadow_hand/assets/forearm_collision.obj",
+  "shadow_hand/assets/lf_metacarpal.obj",
+  "shadow_hand/assets/mounting_plate.obj",
+  "shadow_hand/assets/palm.obj",
+  "shadow_hand/assets/th_distal_pst.obj",
+  "shadow_hand/assets/th_middle.obj",
+  "shadow_hand/assets/th_proximal.obj",
+  "shadow_hand/assets/wrist.obj",
+  "shadow_hand/left_hand.xml",
+  "shadow_hand/right_hand.xml",
+  "shadow_hand/scene_left.xml",
+  "shadow_hand/scene_right.xml",
+  "simple.xml",
+  "skydio_x2/assets/X2_lowpoly.obj",
+  "skydio_x2/assets/phong3SG.mtl",
+  "skydio_x2/assets/X2_lowpoly_texture_SpinningProps_1024.png",
+  "skydio_x2/scene.xml",
+  "skydio_x2/x2.png",
+  "skydio_x2/x2.xml",
+  "slider_crank.xml",
+];
+
+export async function downloadExampleScenes(mujoco) {
+  let allFiles = DEFAULT_SCENE_FILES;
+  try {
+    const indexResponse = await fetch("../assets/scenes/index.json");
+    if (indexResponse.ok) {
+      const filesFromIndex = await indexResponse.json();
+      if (Array.isArray(filesFromIndex) && filesFromIndex.length > 0) {
+        allFiles = filesFromIndex;
+      } else {
+        console.warn("assets/scenes/index.json is empty; using default scene list");
+      }
+    } else {
+      console.warn("Failed to load assets/scenes/index.json (", indexResponse.status, ") using default scene list");
+    }
+  } catch (err) {
+    console.warn("Could not load assets/scenes/index.json; using default scene list", err);
+  }
+
+  let requests = allFiles.map((url) => fetch("../assets/scenes/" + url));
+  let responses = await Promise.all(requests);
+  for (let i = 0; i < responses.length; i++) {
+      let split = allFiles[i].split("/");
+      let working = '/working/';
+      for (let f = 0; f < split.length - 1; f++) {
+          working += split[f];
+          if (!mujoco.FS.analyzePath(working).exists) { mujoco.FS.mkdir(working); }
+          working += "/";
+      }
+
+      if (allFiles[i].endsWith(".png") || allFiles[i].endsWith(".stl") || allFiles[i].endsWith(".skn")) {
+          mujoco.FS.writeFile("/working/" + allFiles[i], new Uint8Array(await responses[i].arrayBuffer()));
+      } else {
+          mujoco.FS.writeFile("/working/" + allFiles[i], await responses[i].text());
+      }
+  }
+}
+
+/** Access the vector at index, swizzle for three.js, and apply to the target THREE.Vector3
+ * @param {Float32Array|Float64Array} buffer
+ * @param {number} index
+ * @param {THREE.Vector3} target */
+export function applyPositionFromBuffer(buffer, index, target, swizzle = true) {
+  if (swizzle) {
+    return target.set(
+       buffer[(index * 3) + 0],
+       buffer[(index * 3) + 2],
+      -buffer[(index * 3) + 1]);
+  } else {
+    return target.set(
+       buffer[(index * 3) + 0],
+       buffer[(index * 3) + 1],
+       buffer[(index * 3) + 2]);
+  }
+}
+
+/** Access the quaternion at index, swizzle for three.js, and apply to the target THREE.Quaternion
+ * @param {Float32Array|Float64Array} buffer
+ * @param {number} index
+ * @param {THREE.Quaternion} target */
+export function applyQuaternionFromBuffer(buffer, index, target, swizzle = true) {
+  if (swizzle) {
+    return target.set(
+      -buffer[(index * 4) + 1],
+      -buffer[(index * 4) + 3],
+       buffer[(index * 4) + 2],
+      -buffer[(index * 4) + 0]);
+  } else {
+    return target.set(
+       buffer[(index * 4) + 0],
+       buffer[(index * 4) + 1],
+       buffer[(index * 4) + 2],
+       buffer[(index * 4) + 3]);
+  }
+}
+
+/** Converts this Vector3's Handedness to MuJoCo's Coordinate Handedness
+ * @param {THREE.Vector3} target */
+export function toMujocoCoords(target) { return target.set(target.x, -target.z, target.y); }
+
+/** Standard normal random number generator using Box-Muller transform */
+export function randomStandardNormal() {
+  return Math.sqrt(-2.0 * Math.log( Math.random())) *
+         Math.cos ( 2.0 * Math.PI * Math.random()); }

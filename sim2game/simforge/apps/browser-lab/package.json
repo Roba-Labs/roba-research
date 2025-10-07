@@ -1,0 +1,28 @@
+{
+  "name": "@simforge/browser-lab",
+  "version": "0.1.0",
+  "description": "Browser showcase for the Simforge MuJoCo WASM runtime",
+  "main": "../../distribution/runtime/wasm/simforge-runtime.js",
+  "scripts": {
+    "postinstall": "echo 'Simforge Browser Lab ready'",
+    "test": "echo \"No automated tests defined\" && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simforge/browser-lab.git"
+  },
+  "keywords": [
+    "simforge",
+    "mujoco",
+    "wasm"
+  ],
+  "author": "Simforge maintainers",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/simforge/browser-lab/issues"
+  },
+  "homepage": "https://github.com/simforge/browser-lab#readme",
+  "dependencies": {
+    "three": "^0.150.1"
+  }
+}
