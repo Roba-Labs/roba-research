@@ -48,18 +48,15 @@ uvx --from mjlab --with "mujoco-warp @ git+https://github.com/google-deepmind/mu
 ```
 
 ### mujoco_scanned_objects
-![Scanned Object Sample](mujoco_scanned_objects/assets/clock.png)
+![Scanned Object Sample](https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/clock.png?raw=true)
 
 mujoco_scanned_objects provides MJCF models for 1,030 household objects from Google’s Scanned Objects dataset. Each object ships with visual and collision meshes plus textures, ready to drop into MuJoCo.
 
 #### Quick Start
 Open any `model.xml` inside `mujoco_scanned_objects/models/**/` with the MuJoCo `simulate` binary (drag and drop or pass the path as an argument) to inspect the meshes. Switch between visual (group 2) and collision (group 3) layers in the viewer.
 
-#### License
-Assets are released under CC-BY 4.0; MJCF files are MIT-licensed (see `mujoco_scanned_objects/LICENSE`).
-
 ### poppy-humanoid
-![Poppy Humanoid](poppy-humanoid/doc/img/poppy-humanoid-github.jpg)
+![Poppy Humanoid](https://github.com/poppy-project/poppy-humanoid/blob/master/doc/img/poppy-humanoid-github.jpg?raw=true)
 
 poppy-humanoid is an open, 3D-printed humanoid robot tailored for research and education. It offers modular mechanics, a comprehensive software toolkit, and a thriving support community.
 
@@ -75,9 +72,9 @@ Alternatively, flash the ready-made Raspberry Pi image from the releases onto an
 | Name | Description | License | Original Repo |
 | --- | --- | --- | --- |
 | sim2game | Browser-based MuJoCo lab with WASM runtime and modular controllers | MIT | https://github.com/k1a11220/sim2game |
-| mujoco_wasm | Client-side MuJoCo sandbox with a Three.js front-end | MIT + MuJoCo license for binaries | https://github.com/zalo/mujoco_wasm |
+| mujoco_wasm | Client-side MuJoCo sandbox with a Three.js front-end | MIT  | https://github.com/zalo/mujoco_wasm |
 | mjlab | MuJoCo Warp-powered RL lab built on the Isaac Lab API | Apache-2.0 | https://github.com/mujocolab/mjlab |
-| mujoco_scanned_objects | 1,030 MJCF models of scanned household objects | CC-BY 4.0 (assets) + MIT (MJCF) | https://github.com/kevinzakka/mujoco_scanned_objects |
+| mujoco_scanned_objects | 1,030 MJCF models of scanned household objects | CC-BY 4.0 + MIT | https://github.com/kevinzakka/mujoco_scanned_objects |
 | poppy-humanoid | Open-source humanoid robot for research and education | CC BY-SA 4.0 + GPLv3 | https://github.com/poppy-project/poppy-humanoid |
 
 ## Update Submodules
