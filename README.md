@@ -52,7 +52,7 @@ npx http-server -p 8080 .
   <img src="https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/plate.png?raw=true" width="45%" alt="Plate" />
 </p>
 
-mujoco_scanned_objects provides MJCF models for 1,030 household objects from Google’s Scanned Objects dataset. Each object ships with visual and collision meshes plus textures, ready to drop into MuJoCo.
+mujoco_scanned_objects provides MJCF models for 1,030 household objects from Google’s Scanned Objects dataset. Each object ships with visual and collision meshes plus textures, ready to drop into MuJoCo and in the future our studio.
 
 #### Quick Start
 Open any `model.xml` inside `mujoco_scanned_objects/models/**/` with the MuJoCo `simulate` binary (drag and drop or pass the path as an argument) to inspect the meshes. Switch between visual (group 2) and collision (group 3) layers in the viewer.
