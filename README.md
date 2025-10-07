@@ -42,16 +42,6 @@ npx http-server -p 8080 .
 # Browser: http://localhost:8080/index.html
 ```
 
-### mjlab
-![mjlab Unitree G1](https://github.com/mujocolab/mjlab/blob/0ec1d26b80766f38777e4845a93401be6f7f479b/src/mjlab/asset_zoo/img/g1.png?raw=true)
-
-mjlab combines the Isaac Lab API with MuJoCo Warp to offer a lightweight RL lab for advanced robotics experiments. It focuses on GPU-accelerated training pipelines (e.g., Unitree G1 velocity tracking and motion imitation) and uv-based workflows for fast iteration.
-
-#### Quick Start
-```bash
-uvx --from mjlab --with "mujoco-warp @ git+https://github.com/google-deepmind/mujoco_warp@486642c3fa262a989b482e0e506716d5793d61a9" demo
-```
-
 ### mujoco_scanned_objects
 ![Scanned Object Sample](https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/clock.png?raw=true)
 
@@ -60,27 +50,13 @@ mujoco_scanned_objects provides MJCF models for 1,030 household objects from Goo
 #### Quick Start
 Open any `model.xml` inside `mujoco_scanned_objects/models/**/` with the MuJoCo `simulate` binary (drag and drop or pass the path as an argument) to inspect the meshes. Switch between visual (group 2) and collision (group 3) layers in the viewer.
 
-### poppy-humanoid
-![Poppy Humanoid](https://github.com/poppy-project/poppy-humanoid/blob/master/doc/img/poppy-humanoid-github.jpg?raw=true)
-
-poppy-humanoid is an open, 3D-printed humanoid robot tailored for research and education. It offers modular mechanics, a comprehensive software toolkit, and a thriving support community.
-
-#### Quick Start
-```bash
-# Install the software locally
-pip install poppy-humanoid
-```
-Alternatively, flash the ready-made Raspberry Pi image from the releases onto an SD card and boot the board.
-
 
 ## Project Summary
 | Name | Description | License | Original Repo |
 | --- | --- | --- | --- |
 | sim2game | Browser-based MuJoCo lab with WASM runtime and modular controllers | MIT | https://github.com/k1a11220/sim2game |
 | mujoco_wasm | Client-side MuJoCo sandbox with a Three.js front-end | MIT  | https://github.com/zalo/mujoco_wasm |
-| mjlab | MuJoCo Warp-powered RL lab built on the Isaac Lab API | Apache-2.0 | https://github.com/mujocolab/mjlab |
 | mujoco_scanned_objects | 1,030 MJCF models of scanned household objects | CC-BY 4.0 + MIT | https://github.com/kevinzakka/mujoco_scanned_objects |
-| poppy-humanoid | Open-source humanoid robot for research and education | CC BY-SA 4.0 + GPLv3 | https://github.com/poppy-project/poppy-humanoid |
 
 ## Update Submodules
 ```bash
