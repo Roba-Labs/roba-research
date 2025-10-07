@@ -1,9 +1,3 @@
-[submodule "poppy-humanoid"]
-	path = poppy-humanoid
-	url = https://github.com/poppy-project/poppy-humanoid.git
 [submodule "mujoco_scanned_objects"]
 	path = mujoco_scanned_objects
 	url = https://github.com/kevinzakka/mujoco_scanned_objects.git
-[submodule "mjlab"]
-	path = mjlab
-	url = https://github.com/mujocolab/mjlab
