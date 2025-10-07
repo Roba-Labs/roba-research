@@ -43,7 +43,13 @@ npx http-server -p 8080 .
 ```
 
 ### mujoco_scanned_objects
-![Scanned Object Sample](https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/clock.png?raw=true)
+<p align="center">
+  <img src="https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/clock.png?raw=true" width="45%" alt="Clock" />
+  <img src="https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/REPLACE_ME_1.png?raw=true" width="45%" alt="Item 2" />
+  <br/>
+  <img src="https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/REPLACE_ME_2.png?raw=true" width="45%" alt="Item 3" />
+  <img src="https://github.com/kevinzakka/mujoco_scanned_objects/blob/main/assets/REPLACE_ME_3.png?raw=true" width="45%" alt="Item 4" />
+</p>
 
 mujoco_scanned_objects provides MJCF models for 1,030 household objects from Google’s Scanned Objects dataset. Each object ships with visual and collision meshes plus textures, ready to drop into MuJoCo.
 
