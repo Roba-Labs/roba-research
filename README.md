@@ -1,11 +1,11 @@
 # ROBA Research
 
 ROBA Research brings together our most active initiatives in **robotics, simulation, and embodied AI**.  
-This repository serves as a central hub for research-focused projects developed by **[ROBA Labs](https://www.robalabs.com)** — including **MuJoCo WebAssembly ports**, **advanced browser front-ends**, a **humanoid research platform**, **MuJoCo Warp-based reinforcement learning environments**, and a **comprehensive object-model library**.
+This repository serves as a central hub for research-focused projects developed by **[ROBA Labs](https://www.robalabs.com)** including **MuJoCo WebAssembly ports**, **advanced browser front-ends**, a **humanoid research platform**, **MuJoCo Warp-based reinforcement learning environments**, and a **comprehensive object-model library**.
 
 Alongside the **ROBA Studio** and **Creator Hub**, this repository acts as a shared store of **templates, simulation environments, and reference implementations**. It is designed both for experienced developers and newcomers who want to experiment, learn, and build upon open robotic systems in realistic physics-based environments.
 
-Our goal is to make **robotics research accessible, transparent, and reproducible** — empowering anyone to simulate, visualize, and train intelligent agents directly in the browser or on local compute infrastructure.
+Our goal is to make **robotics research accessible, transparent, and reproducible** empowering anyone to simulate, visualize, and train intelligent agents directly in the browser or on local compute infrastructure.
 
 ## Projects
 
