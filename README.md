@@ -10,7 +10,7 @@ Our goal is to make **robotics research accessible, transparent, and reproducibl
 ## Projects
 
 ### sim2game
-![Simforge Browser Lab](sim2game/thumbnail.png)
+![Simforge Browser Lab](templates/sim2game/thumbnail.png)
 
 Sim2game streams MuJoCo physics straight into the browser through a WASM runtime paired with a modular Three.js front-end. Ready-to-run aerospace and legged-robot scenes, telemetry overlays, recording pipelines, ROS hooks, and a cleanly segmented codebase (runtime, browser app, generators, toolchain) make it easy to extend.
 
@@ -29,7 +29,7 @@ npx serve public
 ```
 
 ### mujoco_wasm
-![MuJoCo Browser Sandbox](mujoco_wasm/thumbnail.png)
+![MuJoCo Browser Sandbox](templates/mujoco_wasm/thumbnail.png)
 
 mujoco_wasm delivers a fully client-side MuJoCo sandbox. The web app combines the WebAssembly engine with a Three.js interface, packaged scenes, and tools for recording, replay, and tuning simulations.
 
